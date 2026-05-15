@@ -1,94 +1,79 @@
-# openainano
-A simple openai wrapper for Puppet Enterprise to pretend it is a real OpenAI instgance when really its just Ollama. Created using AI!
----
-Understood. Here is the revised **OpenAINano** README focused on deployment, configuration, and maintenance, without the bulk of the script embedded in the text.
+OpenAINano PE Bridge (GOLD Stable)
 
----
+This bridge acts as a high-fidelity translation layer between Puppet Enterprise (PE) Infrastructure Assistant and local Ollama instances. It is specifically engineered to resolve the "Thinking..." hang and "Infinite Loop" issues by precisely mimicking OpenAI's raw network delivery patterns.
 
-# OpenAINano: Local AI Bridge for Puppet Enterprise
+Core Features
 
-**OpenAINano** is a lightweight Python-based protocol translator. It allows **Puppet Enterprise (PE)** to communicate with a local **Ollama** instance by mimicking the OpenAI API structure and spoofing model deployments to satisfy PE's validation requirements.
+Array-Wrapped Streaming: Mimics OpenAI's multi-chunk delivery by wrapping SSE data in literal JSON arrays [...].
 
-## ⚙️ How it Works
+Strict Metadata Spoofing: Injects system_fingerprint, service_tier, and complex usage_details (including reasoning and cached token objects) to satisfy strict Java-based JSON parsers.
 
-Puppet Enterprise requires a specific "handshake" to validate an AI provider. OpenAINano manages this by:
+V2 API Compatibility: Supports both /v1/chat/completions and the PE-specific /api/ai/infra-assistant/ endpoints.
 
-* **Discovery:** Responding to `/v1/models` requests to confirm that `gpt-4.1` and `o4-mini` exist.
+CORS Hardening: High-permissiveness headers to ensure the browser handshake succeeds in secured environments.
 
+Technical Architecture
 
-* **Translation:** Converting OpenAI-formatted chat arrays into the format required by the Ollama `/api/chat` endpoint.
+The "GOLD" Termination Logic
 
+The primary reason for previous failures was the client-side parser waiting for a specific closure. This version implements:
 
-* **Identity Masking:** Reporting all local AI responses as coming from `gpt-4.1` to pass internal Puppet validation.
+Initial Array Open: Starts the stream with [\n.
 
+Chunk Encapsulation: Each logical chunk is wrapped in its own array structure as observed in traffic.log.
 
+Double-Packet Finish: Sends the stop_reason and the usage metadata in a single final array bundle.
 
----
+Out-of-Band [DONE]: Delivers the standard data: [DONE] signal outside the array to force the socket closure.
 
-## 🚀 Installation & Deployment
+Requirements
 
-1. **Prepare Ollama:** Ensure Ollama is running and your preferred model is pulled (e.g., `ollama pull qwen3.6:latest`).
+Python: 3.8+
 
+Ollama: Running locally with minimax-m2.5:cloud (or configured target).
 
-2. **Run Setup:** Execute your `setup_openainano.sh` script with root privileges:
-```bash
-sudo chmod +x setup_openainano.sh && sudo ./setup_openainano.sh
+Network: Port 5000 must be accessible to the PE console.
 
-```
+Operations & Maintenance
 
+Deployment
 
-3. **Verify Service:** Confirm the bridge is active:
+Execute the deploy_bridge.sh script to perform a "Deep Clean" and fresh installation.
 
-```bash
-    systemctl status openainano
-    ```
-
----
-
-## 🛠 Puppet Enterprise Configuration
-In the Puppet Enterprise Console, navigate to the AI Provider settings and enter the following[cite: 1, 2]:
-
-| Setting | Value |
-| :--- | :--- |
-| **Provider** | OpenAI |
-| **Base URL** | `http://<YOUR_SERVER_IP>:5000/v1` |
-| **API Key** | `sk-puppet-enterprise-local-bridge` |
-| **Deployment Name 1** | `gpt-4.1` |
-| **Deployment Name 2** | `o4-mini` |
-
----
-
-## 🧪 Manual Testing
-You can verify the bridge independently of Puppet using `curl`. This ensures the bridge is talking to Ollama correctly[cite: 2]:
-
-```bash
-curl http://localhost:5000/v1/chat/completions \
-  -H "Authorization: Bearer sk-puppet-enterprise-local-bridge" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt-4.1",
-    "messages": [{"role": "user", "content": "Hello OpenAINano!"}]
-  }'
-
-```
-
----
-
-## 📂 Maintenance
-
-* **Application Path:** `/opt/openainano/app.py`.
+sudo bash deploy_bridge.sh
 
 
-* **Virtual Environment:** `/opt/openainano/venv/`.
+Monitoring Logs
+
+To watch the real-time interaction between PE and Ollama:
+
+# Watch the systemd service logs
+journalctl -u openainano -f -o cat
 
 
-* **Logs:** View real-time traffic with `journalctl -u openainano -f`.
+Service Management
+
+# Restart the bridge
+systemctl restart openainano
+
+# Check status
+systemctl status openainano
 
 
-* **Updates:** After modifying `app.py`, you must restart the service:
+Security Implementation
 
-```bash
-    sudo systemctl restart openainano
-    ```
+The bridge enforces a specific token check:
 
----
+Header: Authorization: Bearer sk-puppet-enterprise-local-bridge
+
+Fallback: Also checks X-Authentication headers for compatibility with premium PE modules.
+
+Troubleshooting
+
+If the UI returns to "Thinking" state:
+
+Verify Ollama is responsive: curl http://127.0.0.1:11434/v1/models.
+
+Ensure no ghost processes are holding the port: fuser -k 5000/tcp.
+
+Check that common.yaml in PE is pointing to the correct HTTPS/HTTP bridge URL.

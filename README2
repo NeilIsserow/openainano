@@ -107,7 +107,7 @@ Response:
   "count": 2,
   "hosts": [
     {
-      "host_or_ip": "neilnanocore0.c.tampuppettestenv.internal",
+      "host_or_ip": "testnanocore0.c.tampuppettestenv.internal",
       "token_masked": "Bearer 3e4f9...WhItZ",
       "token_raw": "3e4f9328e71a495384072585f5413193.m2ue6YmBAlKCYZT4VDPWhItZ"
     },
@@ -126,7 +126,7 @@ Safely removes a registration entry on disk, forcing a fresh token exchange on t
 
 Delete by Hostname:
 
-curl -X DELETE http://localhost:5001/api/ollamaai/hosts/neilnanocore0.c.tampuppettestenv.internal
+curl -X DELETE http://localhost:5001/api/ollamaai/hosts/testnanocore0.c.tampuppettestenv.internal
 
 
 Delete by IP:
@@ -148,7 +148,7 @@ During a standard query execution, a successful log trace in /opt/ollamaai/bridg
 
 [2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 📥 INBOUND CHAT COMPLETIONS REQUEST
 [2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] Route Path: /v1/chat/completions
-[2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 📂 LOOKUP SUCCESS: Recovered cached token '3e4f9...WhItZ' from persistent store for Host: 'neilnanocore0.c.tampuppettestenv.internal' (IP: 10.128.0.84)
+[2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 📂 LOOKUP SUCCESS: Recovered cached token '3e4f9...WhItZ' from persistent store for Host: 'testnanocore0.c.tampuppettestenv.internal' (IP: 10.128.0.84)
 [2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 🛠️ Forwarding and translated 1 tools to Ollama Cloud native schema.
 [2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 📡 [DEEP OUTBOUND DISPATCH]
 [2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 👉 Target URL: [https://ollama.com/api/chat](https://ollama.com/api/chat)

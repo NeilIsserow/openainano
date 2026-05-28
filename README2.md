@@ -3,9 +3,10 @@
 **NB:** This code is provided as-is with no warranty or support. It may not
 work or could cause damage. Developed independently (with AI assistance).
 Use this repo at your own risk.
-
 ---
-
+setup_openainano.sh - Bridge to local ollama.com | 
+setup_ollamaai.sh - Bridge directly to ollama.com (with your token)
+---
 ## Overview
 
 The Ollama AI GOLD Bridge is an enterprise-grade transit proxy that connects

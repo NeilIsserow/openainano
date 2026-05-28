@@ -203,3 +203,14 @@ Example successful trace from `/opt/ollamaai/bridge.log`:
 ```
 
 --- 
+---
+Please note the following potential issues before putting into prod that should be resolved at a minimum:
+-
+- Encrypted tokens tied to machine-id provide only obfuscation, not strong security; any local user or image clone can decrypt. Treat DB_FILE as highly sensitive.
+-Verbose logs contain full payloads and upstream chunks — they may include secrets or PII. Even in labs, avoid sending real production secrets through this stack.
+-Management API unauthenticated: anyone on the lab network can list/delete registrations. Limit network reachability (ACLs, VLAN), or bind to localhost when not needed.
+-Running as root + permissive files: increases blast radius if an exploit occurs. Prefer a dedicated non-root service account even in labs.
+-No concurrency/file locking: race conditions may corrupt the host DB during concurrent tests.
+-Hard-coded fallback secret undermines encryption if machine-id unavailable.
+-Live pip installs without pinning may introduce supply-chain changes mid-experiment.
+---

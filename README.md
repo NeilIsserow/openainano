@@ -79,3 +79,13 @@ Verify Ollama is responsive: curl http://127.0.0.1:11434/v1/models.
 Ensure no ghost processes are holding the port: fuser -k 5000/tcp.
 
 Check that common.yaml in PE is pointing to the correct HTTPS/HTTP bridge URL.
+---
+Please note the following potential issues before putting into prod that should be resolved at a minimum:
+-
+- Encrypted tokens tied to machine-id provide only obfuscation, not strong security; any local user or image clone can decrypt. Treat DB_FILE as highly sensitive.
+-Verbose logs contain full payloads and upstream chunks — they may include secrets or PII. Even in labs, avoid sending real production secrets through this stack.
+-Management API unauthenticated: anyone on the lab network can list/delete registrations. Limit network reachability (ACLs, VLAN), or bind to localhost when not needed.
+-Running as root + permissive files: increases blast radius if an exploit occurs. Prefer a dedicated non-root service account even in labs.
+-No concurrency/file locking: race conditions may corrupt the host DB during concurrent tests.
+-Hard-coded fallback secret undermines encryption if machine-id unavailable.
+-Live pip installs without pinning may introduce supply-chain changes mid-experiment.

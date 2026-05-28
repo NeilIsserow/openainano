@@ -1,6 +1,6 @@
 NB! This code is provided as-is, with no guarantee it will work or not do any damage. No warranty or support is provided and this is developed independently of my employer with the help of AI. Use of this repo is at your own risk!
 ---
-Ollama AI GOLD PE Bridge (v2.6.0)
+Ollama AI GOLD PE Bridge (v2.6.0) (setup_ollamaai.sh)
 
 The Ollama AI GOLD Bridge is an enterprise-grade transit proxy designed to connect Puppet Enterprise (PE) Infrastructure Assistant directly to Ollama Cloud (ollama.com/api/chat) on port 5001.
 

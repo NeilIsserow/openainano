@@ -1,3 +1,5 @@
+NB! This code is provided as-is, with no guarantee it will work or not do any damage. No warranty or support is provided and this is developed independently of my employer with the help of AI. Use of this repo is at your own risk!
+---
 OpenAINano PE Bridge (GOLD Stable)
 
 This bridge acts as a high-fidelity translation layer between Puppet Enterprise (PE) Infrastructure Assistant and local Ollama instances. It is specifically engineered to resolve the "Thinking..." hang and "Infinite Loop" issues by precisely mimicking OpenAI's raw network delivery patterns.

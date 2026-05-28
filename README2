@@ -1,37 +1,35 @@
-NB! This code is provided as-is, with no guarantee it will work or not do any damage. No warranty or support is provided and this is developed independently of my employer with the help of AI. Use of this repo is at your own risk!
+## Disclaimer
+
+**NB:** This code is provided as-is with no warranty or support. It may not work or could cause damage. Developed independently (with AI assistance). Use this repo at your own risk.
+
 ---
-Ollama AI GOLD PE Bridge (v2.6.0) (setup_ollamaai.sh)
 
-The Ollama AI GOLD Bridge is an enterprise-grade transit proxy designed to connect Puppet Enterprise (PE) Infrastructure Assistant directly to Ollama Cloud (ollama.com/api/chat) on port 5001.
+# Ollama AI GOLD PE Bridge (v2.6.0) — setup_ollamaai.sh
 
-This bridge acts as a self-contained, high-performance middleware layer that translates OpenAI-style streaming requests from PE into Ollama’s native direct API schemas. Most importantly, it natively overcomes Puppet Enterprise's single-token registration limitations and resolves upstream parsing quirks on the Ollama Cloud platform.
+The Ollama AI GOLD Bridge is an enterprise-grade transit proxy that connects Puppet Enterprise (PE) Infrastructure Assistant to Ollama Cloud (ollama.com/api/chat) on port 5001. It translates OpenAI-style streaming requests from PE into Ollama’s native API schema and addresses PE’s single-token registration limitation and upstream parsing quirks.
 
-🚀 Key Engineering Breakthroughs
+## Key engineering breakthroughs
 
-1. Persistent Token-to-Host Caching Pipeline
+### 1. Persistent Token-to-Host Caching Pipeline
+- Problem: Puppet Enterprise sends its Authorization token only during initial handshake (/validate or /v1/models), then omits it for subsequent chat completions.
+- Solution:
+  - The GOLD bridge captures and cleanses the token during handshake and persists it to disk at `/opt/ollamaai/pe_hosts.txt`.
+  - Double-key matching: token saved under both resolved hostname (with a 1.0s reverse DNS lookup timeout) and the raw source IP to avoid DNS timeout hangs.
+  - Automatic overwrite & protection: re-registering from the PE console overwrites mappings automatically; invalid/empty tokens are protected to avoid accidental erasure.
 
-Puppet Enterprise only transmits its configured Authorization token once during initial handshake registration (/validate or /v1/models) and omits it during subsequent interactive chat completions.
+### 2. Upstream "Value looks like object" 400 Error Resolution
+- Problem: Ollama Cloud’s gateway enforces strict unmarshaling. PE sometimes returns prior assistant messages with tool calls and double-escaped JSON strings (OpenAI standard), causing parsing errors.
+- Solution:
+  - The bridge sanitizes conversation history via a Message History Sanitizer (`sanitize_messages_for_ollama`) that parses stringified tool arguments into native Python dicts before forwarding, preventing errors like:
+    {"error": "Value looks like object, but can't find closing '}' symbol"}
 
-The Solution: The GOLD bridge captures the valid token on handshake, cleanses it, and persists it locally to disk at /opt/ollamaai/pe_hosts.txt.
+### 3. Native-to-OpenAI Tool Translator
+- Problem: Ollama Cloud accepts flat function schemas and returns tool calls as NDJSON streams, while OpenAI-style tool parameters can be nested.
+- Solution:
+  - The bridge flattens nested OpenAI tool parameters into Ollama-compatible function schemas.
+  - During streaming, Ollama tool_call chunks are translated back into OpenAI-compatible delta packets so the Puppet Enterprise agent can execute infrastructure tasks (e.g., `queryPuppetDB`).
 
-Double-Key Matching: To prevent network DNS timeouts from hanging threads, the token is mapped and saved under both the resolved hostname (safeguarded by a 1.0s reverse DNS lookup timeout) and the raw source IP.
-
-Automatic Overwrite & Protection: Re-registering from the PE console automatically overwrites existing mappings, while invalid/empty tokens are guarded against to prevent accidental erasure of active keys.
-
-2. Upstream "Value looks like object" 400 Error Resolution
-
-Ollama Cloud's Go-based gateway parser enforces strict unmarshaling schemas. During multi-turn chat sessions, Puppet Enterprise returns prior assistant responses containing tool calls with arguments formatted as double-escaped JSON strings (OpenAI standard).
-
-The Solution: The bridge intercepts conversation histories and executes an aggressive Message History Sanitizer (sanitize_messages_for_ollama). It dynamically parses previous stringified tool arguments back into raw native Python dictionary objects before forwarding the payload, completely eliminating the fatal upstream error:
-{"error": "Value looks like object, but can't find closing '}' symbol"}
-
-3. Native-to-OpenAI Tool Translator
-
-Ollama Cloud direct API accepts function schemas in a flat layout and returns tool calls in native NDJSON (Newline-Delimited JSON) streams.
-
-The Solution: The bridge dynamically translates complex nested OpenAI tool parameters into clean, flat function schemas. During streaming, it intercepts native Ollama tool_calls chunks and translates them back to OpenAI-compatible choices delta packets so the Puppet Enterprise agent can immediately execute target infrastructure tasks (like queryPuppetDB).
-
-🛠️ System Architecture & Data Flow
+## System architecture & data flow
 
    ┌─────────────────────────────────────────────────────────────┐
    │                  Puppet Enterprise Server                    │
@@ -53,58 +51,46 @@ The Solution: The bridge dynamically translates complex nested OpenAI tool param
                   ▼                               │
    ┌──────────────────────────────────────────────┴──────────────┐
    │                    Ollama Cloud Gateway                     │
-   │                  ([https://ollama.com](https://ollama.com))                       │
    └─────────────────────────────────────────────────────────────┘
 
+## Deployment & setup
 
-📦 Deployment & Setup
+1. Installation on the proxy gateway  
+   Deploy the verified stable service:
+   ```
+   sudo bash deploy_token_stable.sh
+   ```
 
-1. Installation on the Proxy Gateway
+2. Configure Puppet Enterprise console  
+   - Go to Infra Assistant Settings → AI Service Configuration.  
+   - Set the AI Service URL to:
+     ```
+     http://<YOUR_BRIDGE_IP>:5001/v1
+     ```
+   - Enter your official Ollama Cloud API Key in the password/token field.  
+   - Run a test connection — the bridge will intercept, sanitize, and cache the token.
 
-Deploy the verified stable service by running the deployment script:
+3. Verify live traffic & caching  
+   - Watch verbose bridge logs:
+     ```
+     tail -f /opt/ollamaai/bridge.log
+     ```
+   - Inspect systemd stdout/stderr:
+     ```
+     journalctl -u ollamaai -f -o cat
+     ```
 
-sudo bash deploy_token_stable.sh
+## Management API endpoints (port 5001)
 
+The bridge exposes REST endpoints to manage host-to-token mappings.
 
-2. Configure Puppet Enterprise Console
-
-Navigate to your Infra Assistant Settings / AI Service Configuration.
-
-Set the AI Service URL to:
-
-http://<YOUR_BRIDGE_IP>:5001/v1
-
-
-Input your official Ollama Cloud API Key directly into the password/token field.
-
-Run a test connection. The bridge will intercept, sanitize, and cache your token immediately.
-
-3. Verify Live Traffic & Caching
-
-You can watch the complete token-resolution, sanitization, and streaming pipeline execution in real time:
-
-# Watch the explicit verbose bridge logs
-tail -f /opt/ollamaai/bridge.log
-
-# Inspect systemd stdout/stderr
-journalctl -u ollamaai -f -o cat
-
-
-🖥️ Management API Endpoints
-
-The GOLD bridge exposes native REST endpoints on port 5001 for managing host-to-token connections.
-
-1. List All Registered Puppet Enterprise Instances
-
-Returns a complete index of cached hosts, IPs, and their associated tokens.
-
+### 1. List all registered Puppet Enterprise instances
 Request:
-
+```
 curl -s http://localhost:5001/api/ollamaai/hosts | json_pp
-
-
-Response:
-
+```
+Example response:
+```json
 {
   "count": 2,
   "hosts": [
@@ -120,43 +106,41 @@ Response:
     }
   ]
 }
+```
 
+### 2. Delete a host registration
+Deletes a registration entry on disk to force a fresh token exchange.
 
-2. Delete a Host Registration
-
-Safely removes a registration entry on disk, forcing a fresh token exchange on the next validate loop.
-
-Delete by Hostname:
-
+Delete by hostname:
+```
 curl -X DELETE http://localhost:5001/api/ollamaai/hosts/testnanocore0.c.tampuppettestenv.internal
-
-
+```
 Delete by IP:
-
+```
 curl -X DELETE http://localhost:5001/api/ollamaai/hosts/10.128.0.84
-
-
-Response:
-
+```
+Example response:
+```json
 {
   "status": "success",
   "message": "Host connection '10.128.0.84' deleted successfully."
 }
+```
 
+## Log verification trace (success pattern)
 
-🔍 Log Verification Trace (Success Pattern)
-
-During a standard query execution, a successful log trace in /opt/ollamaai/bridge.log will appear as follows:
-
+Example successful trace from /opt/ollamaai/bridge.log:
+```
 [2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 📥 INBOUND CHAT COMPLETIONS REQUEST
 [2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] Route Path: /v1/chat/completions
 [2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 📂 LOOKUP SUCCESS: Recovered cached token '3e4f9...WhItZ' from persistent store for Host: 'testnanocore0.c.tampuppettestenv.internal' (IP: 10.128.0.84)
 [2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 🛠️ Forwarding and translated 1 tools to Ollama Cloud native schema.
 [2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 📡 [DEEP OUTBOUND DISPATCH]
-[2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 👉 Target URL: [https://ollama.com/api/chat](https://ollama.com/api/chat)
+[2026-05-18 17:45:00] [OLLAMA-AI-GOLD-V2.6.0] 👉 Target URL: https://ollama.com/api/chat
 [2026-05-18 17:45:01] [OLLAMA-AI-GOLD-V2.6.0] 📡 Upstream status code returned: 200
 [2026-05-18 17:45:01] [OLLAMA-AI-GOLD-V2.6.0] 📦 [RAW OLLAMA CLOUD CHUNK 1]: {"model":"minimax-m2.5","message":{"role":"assistant","tool_calls":[{"id":"call_abc123","type":"function","function":{"name":"queryPuppetDB","arguments":{"query":"nodes[certname] {}"}}}]}}
 [2026-05-18 17:45:01] [OLLAMA-AI-GOLD-V2.6.0] ➡️ [YIELDED FORMATTED CHUNK]: [\ndata: {"choices": [{"index": 0, "delta": {"role": "assistant", "tool_calls": [{"index": 0, "id": "call_abc123", "type": "function", "function": {"name": "queryPuppetDB", "arguments": "{\"query\": \"nodes[certname] {}\"}"}}]}, "finish_reason": null}] ... }\n\n]\n
 [2026-05-18 17:45:01] [OLLAMA-AI-GOLD-V2.6.0] 🛑 [YIELDING FINAL METADATA BUNDLE]
 [2026-05-18 17:45:01] [OLLAMA-AI-GOLD-V2.6.0] 🏁 YIELDING [DONE] SIGNAL
 [2026-05-18 17:45:01] [OLLAMA-AI-GOLD-V2.6.0] 🏁 CLOUD STREAM COMPLETED SUCCESSFULLY
+```

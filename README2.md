@@ -140,14 +140,14 @@ Example response:
   "count": 2,
   "hosts": [
     {
-      "host_or_ip": "testnanocore0.c.tampuppettestenv.internal",
+      "host_or_ip": "ainanonode",
       "token_masked": "Bearer 3e4f9...WhItZ",
-      "token_raw": "3e4f9328e71a495384072585f5413193.m2ue6YmBAlKCYZT4VDPWhItZ"
+      "token_raw": ".m2ue6YmBAlKCYZT4VDPWhItZ"
     },
     {
       "host_or_ip": "10.128.0.84",
       "token_masked": "Bearer 3e4f9...WhItZ",
-      "token_raw": "3e4f9328e71a495384072585f5413193.m2ue6YmBAlKCYZT4VDPWhItZ"
+      "token_raw": ".m2ue6YmBAlKCYZT4VDPWhItZ"
     }
   ]
 }
